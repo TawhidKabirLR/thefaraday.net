@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Franz Richter Organization — Engineered Beyond Software</title>
+  <meta name="description" content="Franz Richter Organization builds systems at the intersection of hardware and software. From embedded architecture to full-stack platforms." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ── Spin viewer ──────────────────────────────────────────── */
+    .spin-wrap {
+      position: relative;
+      width: 100%;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow:
+        0 72px 108px rgba(0,0,0,0.13),
+        0 28px 44px rgba(0,0,0,0.09),
+        0 8px 14px rgba(0,0,0,0.06);
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      background: #1a1a1a;
+    }
+    .spin-wrap.dragging { cursor: grabbing; }
+
+    .spin-wrap video {
+      width: 100%;
+      display: block;
+      pointer-events: none;
+      /* stop iOS from fullscreening on tap */
+      -webkit-playsinline: true;
+    }
+
+    /* Loading overlay */
+    .spin-loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      background: #141414;
+      transition: opacity 0.5s ease;
+      z-index: 10;
+    }
+    .spin-loading.hidden { opacity: 0; pointer-events: none; }
+    .spin-spinner {
+      width: 32px; height: 32px;
+      border: 2.5px solid rgba(255,255,255,0.10);
+      border-top-color: rgba(255,255,255,0.55);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin-loading span {
+      font-size: 12px; font-weight: 500;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* Drag hint */
+    .spin-hint {
+      position: absolute; bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.48);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 100px;
+      padding: 8px 16px 8px 12px;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      z-index: 5;
+    }
+    .spin-hint.hidden { opacity: 0; }
+    .spin-hint svg { flex-shrink: 0; animation: hintPulse 2s ease-in-out infinite; }
+    @keyframes hintPulse {
+      0%, 100% { transform: translateX(0); opacity: 0.6; }
+      40%       { transform: translateX(-4px); opacity: 1; }
+      60%       { transform: translateX(4px); opacity: 1; }
+    }
+    .spin-hint span {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.10em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      white-space: nowrap;
+    }
+
+    /* Progress scrubber (thin bar at bottom) */
+    .spin-progress {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.08);
+      z-index: 5; pointer-events: none;
+    }
+    .spin-progress-fill {
+      height: 100%;
+      background: rgba(255,255,255,0.35);
+      width: 0%;
+      transition: width 0.05s linear;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="progress-bar" id="prog"></div>
+
+  <!-- ── NAV ──────────────────────────────────────────────────── -->
+  <nav>
+    <a href="index.html" class="logo">Franz Richter Organization</a>
+    <ul class="nav-links">
+      <li><a href="#capabilities">Capabilities</a></li>
+      <li><a href="#showcase">Work</a></li>
+      <li><a href="#founders">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="#contact" class="nav-btn">Get in Touch</a>
+  </nav>
+
+  <!-- ── HERO ─────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-text">
+      <span class="eyebrow fade-up" id="h-ey">Franz Richter Organization</span>
+      <h1 class="fade-up delay-1" id="h-title">Engineered<br>Beyond Software.</h1>
+      <p class="lead fade-up delay-2" id="h-sub" style="margin-top:24px">
+        Franz Richter Organization builds systems at the intersection of hardware and software.
+        From embedded architecture to full-stack platforms, every layer is designed with
+        precision, performance, and intent. We focus on building reliable, efficient systems
+        from the ground up.
+      </p>
+      <a href="#capabilities" class="pill-btn fade-up delay-3" id="h-btn">
+        Explore Systems
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+
+    <!-- ── HERO VISUAL: drag-to-rotate video viewer ── -->
+    <div class="hero-visual fade-in" id="h-img">
+      <div class="spin-wrap" id="spinWrap">
+
+        <video
+          id="spinVideo"
+          src="rpi5-spin.mp4"
+          muted
+          playsinline
+          webkit-playsinline
+          preload="auto">
+        </video>
+
+        <!-- Loading state -->
+        <div class="spin-loading" id="spinLoading">
+          <div class="spin-spinner"></div>
+          <span>Loading model…</span>
+        </div>
+
+        <!-- Drag hint (fades on first drag) -->
+        <div class="spin-hint" id="spinHint">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <path d="M4 6h10M2 6l3-3M2 6l3 3M16 6l-3-3M16 6l-3 3"
+                  stroke="rgba(255,255,255,0.8)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Drag to rotate</span>
+        </div>
+
+        <!-- Scrub progress bar -->
+        <div class="spin-progress">
+          <div class="spin-progress-fill" id="spinProgressFill"></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CAPABILITIES ─────────────────────────────────────────── -->
+  <section class="section capabilities" id="capabilities">
+    <div class="inner">
+      <div class="capabilities-header">
+        <span class="eyebrow fade-up">What We Build</span>
+        <h2 class="fade-up delay-1">Built for every layer<br>of the stack.</h2>
+      </div>
+      <div class="caps-grid">
+        <div class="cap-card fade-up delay-1">
+          <div class="cap-icon">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <rect x="2" y="2" width="18" height="18" rx="3" stroke="#111" stroke-width="1.8"/>
+              <path d="M7 11h8M11 7v8" stroke="#111" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>Full Stack Systems</h3>
+          <p>Building complete software systems from backend to frontend, with a focus on performance, scalability, and maintainability. Every component is designed to work together as a cohesive whole, not assembled from disconnected parts.</p>
+        </div>
+        <div class="cap-card fade-up delay-2">
+          <div class="cap-icon">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <path d="M4 6l4 5-4 5M12 16h6" stroke="#111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3>Embedded Engineering</h3>
+          <p>Designing low-level systems that interact directly with hardware, prioritizing efficiency and reliability. We write the firmware and drivers that make hardware respond exactly as intended, with no wasted cycles and no abstraction overhead where it matters.</p>
+        </div>
+        <div class="cap-card fade-up delay-3">
+          <div class="cap-icon">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="11" r="8" stroke="#111" stroke-width="1.8"/>
+              <path d="M8 11l2 2 4-4" stroke="#111" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3>AI &amp; Automation</h3>
+          <p>Creating intelligent systems and automation tools that integrate into real-world workflows and improve operational efficiency. We build systems that make decisions based on real data, with well-defined behavior and observable outputs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SHOWCASE ─────────────────────────────────────────────── -->
+  <section class="showcase" id="showcase">
+    <div class="showcase-header">
+      <span class="eyebrow fade-up">Selected Work</span>
+      <h2 class="fade-up delay-1">Systems we've shipped.</h2>
+    </div>
+
+    <div class="showcase-panel">
+      <div class="panel-visual-wrap fade-left" id="sv1">
+        <svg viewBox="0 0 600 460" xmlns="http://www.w3.org/2000/svg" style="min-height:460px">
+          <defs>
+            <linearGradient id="pv1bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1A5528"/><stop offset="100%" stop-color="#0F3618"/>
+            </linearGradient>
+            <radialGradient id="pv1light" cx="25%" cy="20%" r="65%">
+              <stop offset="0%" stop-color="rgba(255,248,230,0.20)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <radialGradient id="pv1vig" cx="50%" cy="50%" r="70%">
+              <stop offset="40%" stop-color="rgba(0,0,0,0)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0.45)"/>
+            </radialGradient>
+          </defs>
+          <rect width="600" height="460" fill="url(#pv1bg)"/>
+          <g stroke="#A07010" fill="none" opacity="0.5">
+            <line x1="0" y1="80"  x2="600" y2="80"  stroke-width="2"/>
+            <line x1="0" y1="380" x2="600" y2="380" stroke-width="2"/>
+            <line x1="80"  y1="0" x2="80"  y2="460" stroke-width="2"/>
+            <line x1="520" y1="0" x2="520" y2="460" stroke-width="2"/>
+            <line x1="0" y1="230" x2="220" y2="230" stroke-width="2.5"/>
+            <line x1="380" y1="230" x2="600" y2="230" stroke-width="2.5"/>
+          </g>
+          <rect x="180" y="140" width="240" height="180" rx="5" fill="#1E1E1E"/>
+          <rect x="184" y="144" width="232" height="172" rx="4" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="0.8"/>
+          <text x="300" y="228" text-anchor="middle" fill="rgba(255,255,255,0.32)" font-family="monospace" font-size="13" font-weight="700" letter-spacing="0.1em">STM32H7</text>
+          <text x="300" y="245" text-anchor="middle" fill="rgba(255,255,255,0.15)" font-family="monospace" font-size="8" letter-spacing="0.08em">CORTEX-M7 · 480 MHz</text>
+          <text x="300" y="260" text-anchor="middle" fill="rgba(255,255,255,0.10)" font-family="monospace" font-size="7">2MB FLASH · 1MB SRAM</text>
+          <g fill="#B8B0A0" opacity="0.8">
+            <rect x="194" y="132" width="6" height="9" rx="1"/><rect x="206" y="132" width="6" height="9" rx="1"/>
+            <rect x="218" y="132" width="6" height="9" rx="1"/><rect x="230" y="132" width="6" height="9" rx="1"/>
+            <rect x="242" y="132" width="6" height="9" rx="1"/><rect x="254" y="132" width="6" height="9" rx="1"/>
+            <rect x="171" y="152" width="9" height="6" rx="1"/><rect x="171" y="166" width="9" height="6" rx="1"/>
+            <rect x="171" y="180" width="9" height="6" rx="1"/><rect x="171" y="194" width="9" height="6" rx="1"/>
+            <rect x="420" y="152" width="9" height="6" rx="1"/><rect x="420" y="166" width="9" height="6" rx="1"/>
+          </g>
+          <rect x="80" y="100" width="60" height="46" rx="3" fill="#1E1E1E"/>
+          <text x="110" y="126" text-anchor="middle" fill="rgba(255,255,255,0.22)" font-family="monospace" font-size="7.5">CAN-PHY</text>
+          <rect x="460" y="100" width="60" height="46" rx="3" fill="#1E1E1E"/>
+          <text x="490" y="126" text-anchor="middle" fill="rgba(255,255,255,0.22)" font-family="monospace" font-size="7.5">LIN-XCVR</text>
+          <circle cx="490" cy="380" r="6" fill="#16A34A" opacity="0.8"/>
+          <circle cx="510" cy="380" r="6" fill="#1D4ED8" opacity="0.8"/>
+          <rect width="600" height="460" fill="url(#pv1light)"/>
+          <rect width="600" height="460" fill="url(#pv1vig)"/>
+        </svg>
+      </div>
+      <div class="panel-text fade-right" id="st1">
+        <p class="panel-num">01</p>
+        <span class="eyebrow">Automotive</span>
+        <h3>CAN Bus Gateway Controller</h3>
+        <p>A multi-protocol automotive gateway built around the STM32H7, bridging CAN FD, LIN, and Ethernet buses. Developed firmware in bare-metal C with FreeRTOS scheduling, achieving sub-100µs latency across all protocol bridges while meeting ISO 26262 ASIL-B requirements.</p>
+      </div>
+    </div>
+
+    <div class="showcase-panel reverse">
+      <div class="panel-visual-wrap fade-right" id="sv2">
+        <svg viewBox="0 0 600 460" xmlns="http://www.w3.org/2000/svg" style="min-height:460px">
+          <defs>
+            <linearGradient id="pv2bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1C2440"/><stop offset="100%" stop-color="#0E1428"/>
+            </linearGradient>
+            <radialGradient id="pv2light" cx="70%" cy="25%" r="60%">
+              <stop offset="0%" stop-color="rgba(240,245,255,0.18)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <radialGradient id="pv2vig" cx="50%" cy="50%" r="70%">
+              <stop offset="40%" stop-color="rgba(0,0,0,0)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0.4)"/>
+            </radialGradient>
+          </defs>
+          <rect width="600" height="460" fill="url(#pv2bg)"/>
+          <g stroke="#C0401A" fill="none" opacity="0.7" stroke-linecap="round">
+            <path d="M 60 80 Q 120 100 140 180" stroke-width="3.5"/>
+            <path d="M 65 80 Q 125 100 145 180" stroke-width="2.5"/>
+            <path d="M 70 80 Q 130 100 150 180" stroke-width="3.5"/>
+          </g>
+          <g stroke="#1D70B0" fill="none" opacity="0.7" stroke-linecap="round">
+            <path d="M 540 80 Q 480 100 460 180" stroke-width="3.5"/>
+            <path d="M 535 80 Q 475 100 455 180" stroke-width="2.5"/>
+          </g>
+          <g stroke="#D4A010" fill="none" opacity="0.7" stroke-linecap="round">
+            <path d="M 60 380 Q 140 360 160 280" stroke-width="3.5"/>
+            <path d="M 540 380 Q 460 360 440 280" stroke-width="3.5"/>
+          </g>
+          <rect x="130" y="150" width="340" height="160" rx="8" fill="#1A3C1A"/>
+          <rect x="220" y="185" width="160" height="110" rx="4" fill="#1A1A1A"/>
+          <text x="300" y="240" text-anchor="middle" fill="rgba(255,255,255,0.30)" font-family="monospace" font-size="11" font-weight="700" letter-spacing="0.10em">nRF9160</text>
+          <text x="300" y="256" text-anchor="middle" fill="rgba(255,255,255,0.14)" font-family="monospace" font-size="7.5">LTE-M / NB-IoT + GPS</text>
+          <rect x="134" y="165" width="28" height="130" rx="3" fill="#2A2A30"/>
+          <rect x="438" y="165" width="28" height="130" rx="3" fill="#2A2A30"/>
+          <rect width="600" height="460" fill="url(#pv2light)"/>
+          <rect width="600" height="460" fill="url(#pv2vig)"/>
+        </svg>
+      </div>
+      <div class="panel-text fade-left" id="st2">
+        <p class="panel-num">02</p>
+        <span class="eyebrow">Industrial IoT</span>
+        <h3>Cellular IoT Sensor Platform</h3>
+        <p>A low-power wireless sensor platform built on the Nordic nRF9160 for LTE-M connectivity and integrated GPS tracking. Designed for a 3-year battery life on a single cell in hostile industrial environments. The full software stack — from Zephyr RTOS to cloud ingestion — was built in-house.</p>
+      </div>
+    </div>
+
+    <div class="showcase-panel">
+      <div class="panel-visual-wrap fade-left" id="sv3">
+        <svg viewBox="0 0 600 460" xmlns="http://www.w3.org/2000/svg" style="min-height:460px">
+          <defs>
+            <linearGradient id="pv3bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1A1820"/><stop offset="100%" stop-color="#0E0C14"/>
+            </linearGradient>
+            <radialGradient id="pv3light" cx="35%" cy="30%" r="55%">
+              <stop offset="0%" stop-color="rgba(240,245,255,0.15)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0)"/>
+            </radialGradient>
+            <radialGradient id="pv3vig" cx="50%" cy="50%" r="70%">
+              <stop offset="40%" stop-color="rgba(0,0,0,0)"/>
+              <stop offset="100%" stop-color="rgba(0,0,0,0.5)"/>
+            </radialGradient>
+          </defs>
+          <rect width="600" height="460" fill="url(#pv3bg)"/>
+          <g opacity="0.6">
+            <rect x="40"  y="190" width="90" height="80" rx="8" fill="rgba(29,78,216,0.2)" stroke="rgba(29,78,216,0.5)" stroke-width="1"/>
+            <text x="85"  y="230" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9" letter-spacing="0.1em">DATA</text>
+            <text x="85"  y="245" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9" letter-spacing="0.1em">INGEST</text>
+            <rect x="175" y="150" width="90" height="80" rx="8" fill="rgba(22,163,74,0.2)" stroke="rgba(22,163,74,0.5)" stroke-width="1"/>
+            <text x="220" y="190" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9">FEATURE</text>
+            <text x="220" y="205" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9">EXTRACT</text>
+            <rect x="175" y="260" width="90" height="80" rx="8" fill="rgba(234,179,8,0.2)" stroke="rgba(234,179,8,0.4)" stroke-width="1"/>
+            <text x="220" y="300" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9">FILTER</text>
+            <text x="220" y="315" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-family="monospace" font-size="9">PREPROC</text>
+            <rect x="320" y="190" width="120" height="80" rx="8" fill="rgba(139,92,246,0.2)" stroke="rgba(139,92,246,0.5)" stroke-width="1.5"/>
+            <text x="380" y="228" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-family="monospace" font-size="9" font-weight="700">INFERENCE</text>
+            <text x="380" y="244" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="7.5">NPU · TFLite</text>
+            <rect x="475" y="140" width="90" height="70" rx="8" fill="rgba(239,68,68,0.18)" stroke="rgba(239,68,68,0.45)" stroke-width="1"/>
+            <text x="520" y="177" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-family="monospace" font-size="9">OUTPUT</text>
+            <rect x="475" y="250" width="90" height="70" rx="8" fill="rgba(20,184,166,0.18)" stroke="rgba(20,184,166,0.45)" stroke-width="1"/>
+            <text x="520" y="287" text-anchor="middle" fill="rgba(255,255,255,0.55)" font-family="monospace" font-size="9">TELEMETRY</text>
+            <line x1="130" y1="230" x2="175" y2="200" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <line x1="130" y1="230" x2="175" y2="290" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <line x1="265" y1="190" x2="320" y2="220" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <line x1="265" y1="300" x2="320" y2="250" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <line x1="440" y1="215" x2="475" y2="190" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <line x1="440" y1="245" x2="475" y2="275" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          </g>
+          <text x="40" y="60" fill="rgba(255,255,255,0.30)" font-family="monospace" font-size="10" letter-spacing="0.18em" font-weight="700">EDGE AI INFERENCE PIPELINE</text>
+          <rect width="600" height="460" fill="url(#pv3light)"/>
+          <rect width="600" height="460" fill="url(#pv3vig)"/>
+        </svg>
+      </div>
+      <div class="panel-text fade-right" id="st3">
+        <p class="panel-num">03</p>
+        <span class="eyebrow">Edge Computing</span>
+        <h3>Edge AI Inference Board</h3>
+        <p>A custom system-on-module with a dedicated NPU for on-device machine learning inference. Designed to process MIPI camera input and run TensorFlow Lite models under a strict 2W power budget. Custom BSP, camera ISP tuning, and inference runtime were all developed internally.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PHILOSOPHY ────────────────────────────────────────────── -->
+  <section class="philosophy section" id="philosophy">
+    <div class="inner">
+      <span class="eyebrow fade-up">How We Work</span>
+      <h2 class="fade-up delay-1" style="margin-bottom:80px">First principles.<br>Every time.</h2>
+      <div class="principles-grid">
+        <div class="principle fade-up delay-1">
+          <p class="principle-num">01</p>
+          <h3>Built from First Principles</h3>
+          <p>We don't start with a framework and work backward. Every system is designed from its fundamental requirements, which means no inherited complexity and no unnecessary dependencies. We understand every component we ship.</p>
+        </div>
+        <div class="principle fade-up delay-2">
+          <p class="principle-num">02</p>
+          <h3>Performance at Every Layer</h3>
+          <p>Performance is not an optimization pass at the end. It is a design constraint from the start. We consider compute budgets, memory layouts, and latency requirements before the first line of code is written.</p>
+        </div>
+        <div class="principle fade-up delay-3">
+          <p class="principle-num">03</p>
+          <h3>Precision Over Excess</h3>
+          <p>Smaller systems are easier to reason about, test, and maintain. We resist the impulse to add abstraction where directness will do, and we prefer systems that do one thing correctly over systems that attempt everything adequately.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOUNDERS ───────────────────────────────────────────────── -->
+  <section class="founders section" id="founders">
+    <div class="inner">
+      <div class="founders-grid">
+        <div class="founders-text fade-left" id="ft">
+          <span class="eyebrow">The Team</span>
+          <h2>Founded by engineers.<br>Driven by craft.</h2>
+          <p>Franz Richter Organization was founded by Tawhid Kabir and Lam Richter, engineers focused on building systems at every layer of the stack. From low-level architecture to user-facing applications, their work emphasizes control, performance, and long-term scalability.</p>
+          <p>Rather than relying on prebuilt solutions, the team approaches each project from first principles — designing and implementing systems that are tailored, efficient, and deeply integrated.</p>
+          <div class="founder-badges">
+            <div class="founder-badge">
+              <div class="founder-avatar">TK</div>
+              <div class="founder-info">
+                <p>Tawhid Kabir</p>
+                <span>Director of Software Development</span>
+              </div>
+            </div>
+            <div class="founder-badge">
+              <div class="founder-avatar">LR</div>
+              <div class="founder-info">
+                <p>Lam Richter</p>
+                <span>Hardware Engineering Lead</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="founders-aside fade-right" id="fa">
+          <span class="eyebrow">Organization</span>
+          <h3>Franz Richter Organization</h3>
+          <div class="aside-stat">
+            <span class="aside-stat-label">Founded</span>
+            <span class="aside-stat-val">2024</span>
+          </div>
+          <div class="aside-stat">
+            <span class="aside-stat-label">Headquarters</span>
+            <span class="aside-stat-val">New York, NY</span>
+          </div>
+          <div class="aside-stat">
+            <span class="aside-stat-label">Focus</span>
+            <span class="aside-stat-val">Systems Engineering</span>
+          </div>
+          <div class="aside-stat">
+            <span class="aside-stat-label">Approach</span>
+            <span class="aside-stat-val">First Principles</span>
+          </div>
+          <div class="aside-stat">
+            <span class="aside-stat-label">Contact</span>
+            <span class="aside-stat-val" style="font-size:14px">tawhid.kabir@franzrichter.org</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTACT ────────────────────────────────────────────────── -->
+  <section class="contact section section-alt" id="contact">
+    <div class="inner">
+      <div class="contact-grid">
+        <div class="contact-text fade-left" id="ct">
+          <span class="eyebrow">Contact</span>
+          <h2>Let's build<br>something precise.</h2>
+          <p class="lead" style="margin-bottom:40px">Whether you have a hardware project, a systems integration challenge, or a full-stack build that needs real engineering depth — we want to hear about it.</p>
+          <div class="contact-details">
+            <div class="contact-item">
+              <div class="contact-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="4" width="14" height="10" rx="2" stroke="#111" stroke-width="1.6"/>
+                  <path d="M2 6l7 5 7-5" stroke="#111" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="contact-item-text">
+                <p>Email</p>
+                <a href="mailto:tawhid.kabir@franzrichter.org">tawhid.kabir@franzrichter.org</a>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M3 3h3l1.5 4-2 1.5a10 10 0 004 4L11 11l4 1.5V15h-3A11 11 0 013 3z" stroke="#111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="contact-item-text">
+                <p>Phone</p>
+                <a href="tel:7184276353">718 427 6353</a>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M9 2a5 5 0 015 5c0 3-5 9-5 9S4 10 4 7a5 5 0 015-5z" stroke="#111" stroke-width="1.6"/>
+                  <circle cx="9" cy="7" r="1.5" stroke="#111" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="contact-item-text">
+                <p>Location</p>
+                <span>New York, NY</span>
+              </div>
+            </div>
+            <div class="contact-item">
+              <div class="contact-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <circle cx="9" cy="6" r="3" stroke="#111" stroke-width="1.6"/>
+                  <path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="#111" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="contact-item-text">
+                <p>Director, Software Development</p>
+                <span>Tawhid Kabir</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="contact-form fade-right" id="cf">
+          <h3>Send a message</h3>
+          <form onsubmit="return false;">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" placeholder="Your name" autocomplete="name" />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input type="email" placeholder="your@email.com" autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label>Subject</label>
+              <select>
+                <option value="">Select a topic</option>
+                <option>Hardware Project</option>
+                <option>Embedded Engineering</option>
+                <option>Full Stack Development</option>
+                <option>AI &amp; Automation</option>
+                <option>General Inquiry</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Message</label>
+              <textarea placeholder="Describe your project or inquiry..."></textarea>
+            </div>
+            <button type="submit" class="form-submit">Send Message</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a href="index.html" class="footer-logo">Franz Richter Organization</a>
+        <p>Systems engineering at every layer of the stack. Built from first principles, shipped with precision.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#capabilities">Capabilities</a></li>
+          <li><a href="#showcase">Work</a></li>
+          <li><a href="#founders">About</a></li>
+          <li><a href="careers.html">Careers</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Policy</a></li>
+          <li><a href="terms.html">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:tawhid.kabir@franzrichter.org">tawhid.kabir@franzrichter.org</a></li>
+          <li><a href="tel:7184276353">718 427 6353</a></li>
+          <li><a href="#contact">New York, NY</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="footer-copy">© 2026 Franz Richter Organization. All rights reserved.</p>
+      <a href="index.html" class="footer-logo">FRO</a>
+    </div>
+  </footer>
+
+  <script>
+    // ── Page scroll progress bar
+    const prog = document.getElementById('prog');
+    window.addEventListener('scroll', () => {
+      const h = document.documentElement;
+      prog.style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+    }, { passive: true });
+
+    // ── Scroll reveal
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+    }, { threshold: 0.14 });
+    document.querySelectorAll('.fade-up,.fade-in,.fade-left,.fade-right,.principle,.cap-card')
+      .forEach(el => io.observe(el));
+
+    // ── Hero text stagger
+    ['h-ey','h-title','h-sub','h-btn'].forEach((id, i) => {
+      setTimeout(() => { document.getElementById(id)?.classList.add('visible'); }, 100 + i * 120);
+    });
+    setTimeout(() => { document.getElementById('h-img')?.classList.add('visible'); }, 300);
+
+    // ── Drag-to-rotate viewer ─────────────────────────────────────
+    const wrap     = document.getElementById('spinWrap');
+    const video    = document.getElementById('spinVideo');
+    const hint     = document.getElementById('spinHint');
+    const loading  = document.getElementById('spinLoading');
+    const progFill = document.getElementById('spinProgressFill');
+
+    let dragging  = false;
+    let startX    = 0;
+    let startTime = 0;
+    let hintDone  = false;
+
+    // ── Sensitivity: pixels of drag per second of video.
+    //    Lower = faster spin. 80px per second feels natural.
+    const PX_PER_SECOND = 80;
+
+    // Hide loader once video can play
+    video.addEventListener('canplay', () => {
+      loading.classList.add('hidden');
+      video.currentTime = 0;
+    });
+
+    // Update progress bar as user drags
+    function updateProgress() {
+      if (!video.duration) return;
+      progFill.style.width = ((video.currentTime / video.duration) * 100) + '%';
+    }
+
+    // ── Drag helpers
+    function onDragStart(x) {
+      dragging  = true;
+      startX    = x;
+      startTime = video.currentTime;
+      wrap.classList.add('dragging');
+      if (!hintDone) {
+        hint.classList.add('hidden');
+        hintDone = true;
+      }
+    }
+
+    function onDragMove(x) {
+      if (!dragging || !video.duration) return;
+      const dx      = x - startX;
+      const delta   = dx / PX_PER_SECOND;          // seconds to shift
+      let newTime   = startTime + delta;
+      // Wrap around so the model loops seamlessly
+      const dur     = video.duration;
+      newTime       = ((newTime % dur) + dur) % dur;
+      video.currentTime = newTime;
+      updateProgress();
+    }
+
+    function onDragEnd() {
+      dragging = false;
+      wrap.classList.remove('dragging');
+    }
+
+    // Mouse
+    wrap.addEventListener('mousedown', e => { e.preventDefault(); onDragStart(e.clientX); });
+    window.addEventListener('mousemove', e => onDragMove(e.clientX));
+    window.addEventListener('mouseup',   onDragEnd);
+
+    // Touch
+    wrap.addEventListener('touchstart', e => {
+      e.preventDefault();
+      onDragStart(e.touches[0].clientX);
+    }, { passive: false });
+
+    window.addEventListener('touchmove', e => {
+      if (dragging) { e.preventDefault(); onDragMove(e.touches[0].clientX); }
+    }, { passive: false });
+
+    window.addEventListener('touchend', onDragEnd);
+  </script>
+</body>
+</html>
